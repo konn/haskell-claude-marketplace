@@ -1,0 +1,8 @@
+{
+  "name": "haskell-lsp-plugin",
+  "description": "Haskell Language Server",
+  "version": "0.0.0",
+  "author": {
+    "name": "Hiromi ISHII"
+  }
+}

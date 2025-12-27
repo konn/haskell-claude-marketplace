@@ -1,0 +1,12 @@
+{
+  "haskell": {
+    "command": "haskell-language-server-wrapper",
+    "args": ["--lsp"],
+    "extensionToLanguage": {
+      ".hs": "haskell",
+      ".lhs": "haskell",
+      ".hsig": "haskell",
+      ".cabal": "haskell"
+    }
+  }
+}
