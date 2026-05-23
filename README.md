@@ -1,6 +1,6 @@
 # Haskell Claude Tools
 
-A third-party [Claude Code](https://claude.com/claude-code) plugin marketplace for **Haskell
+An opinionated, third-party [Claude Code](https://claude.com/claude-code) plugin marketplace for **Haskell
 development**. It bundles a Language Server plugin, a local documentation/source reader, and an
 orchestrating "super-skill" that ties them together into one cabal-native workflow.
 
