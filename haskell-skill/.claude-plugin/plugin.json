@@ -1,0 +1,11 @@
+{
+  "name": "haskell-skill",
+  "description": "Orchestrating super-skill for developing Haskell projects with cabal nix-style builds",
+  "version": "0.1.0",
+  "author": {
+    "name": "Hiromi ISHII"
+  },
+  "dependencies": [
+    { "name": "hoogle", "marketplace": "claude-hoogle" }
+  ]
+}

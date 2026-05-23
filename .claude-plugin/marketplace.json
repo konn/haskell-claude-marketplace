@@ -1,8 +1,9 @@
 {
-  "name": "konn-hls-claude-marketplace",
+  "name": "konn-haskell-claude-tools",
   "owner": {
     "name": "Hiromi Ishii"
   },
+  "allowCrossMarketplaceDependenciesOn": ["claude-hoogle"],
   "plugins": [
     {
       "name": "haskell-lsp-plugin",
@@ -13,6 +14,26 @@
         "name": "Hiromi ISHII"
       },
       "description": "A Haskell Language Server plugin for Claude Code"
+    },
+    {
+      "name": "haskell-haddock-skill",
+      "source": "./haskell-haddock-skill",
+      "category": "development",
+      "tags": ["haskell", "haddock", "documentation", "hackage", "source"],
+      "author": {
+        "name": "Hiromi ISHII"
+      },
+      "description": "Read local Haddock docs and package source for cabal dependencies"
+    },
+    {
+      "name": "haskell-skill",
+      "source": "./haskell-skill",
+      "category": "development",
+      "tags": ["haskell", "cabal", "development", "workflow"],
+      "author": {
+        "name": "Hiromi ISHII"
+      },
+      "description": "Orchestrating super-skill for Haskell (cabal nix-style) development"
     }
   ]
 }
