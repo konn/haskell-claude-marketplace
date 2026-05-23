@@ -1,0 +1,8 @@
+{
+  "name": "haskell-format-skill",
+  "description": "Format Haskell source (.hs/.lhs/.hsig) with the project's formatter (fourmolu/ormolu/stylish-haskell); on-save hook formats sources automatically",
+  "version": "0.1.0",
+  "author": {
+    "name": "Hiromi ISHII"
+  }
+}

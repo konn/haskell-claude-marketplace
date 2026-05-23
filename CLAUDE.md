@@ -20,6 +20,8 @@ repo means editing JSON manifests and Markdown `SKILL.md` files, not Haskell sou
 | `haskell-lsp-plugin/` | LSP plugin | **exists** | Launches `haskell-language-server-wrapper --lsp` for fast typecheck, symbol lookup, rename, diagnostics |
 | `haskell-haddock-skill/` | skill plugin | **planned** | Read local Haddock HTML docs and package source for dependencies |
 | `haskell-skill/` | skill plugin | **planned** | Orchestrating "super skill" that drives a full Haskell dev workflow |
+| `haskell-cabal-gild-skill/` | skill plugin + hook | **exists** | `/haskell-cabal-gild`: format `.cabal`/`cabal.project` with cabal-gild; on-save hook reformats cabal files and refreshes `discover` module lists |
+| `haskell-format-skill/` | skill plugin + hook | **exists** | `/haskell-format`: format `.hs`/`.lhs`/`.hsig` with fourmolu/ormolu/stylish-haskell; on-save hook formats sources |
 | `claude-hoogle` (external) | dependency | external | Provides `hoogle:search` + `hoogle:remote`; lives at https://github.com/m4dc4p/claude-hoogle |
 
 When you add a planned component, create it as a plugin directory at the repo root and register
@@ -42,7 +44,8 @@ Core development principles the `haskell-skill` is meant to encode (relevant whe
 `SKILL.md`):
 - Treat `cabal.project` and cabal **nix-style** builds as the source of truth.
 - For multi-package projects, proceed **package by package**.
-- Apply the formatter **before** compiling.
+- Apply the formatter **before** compiling — `/haskell-format` for sources, `/haskell-cabal-gild`
+  for `.cabal`/`cabal.project` files (both also run via on-save hooks).
 - Prefer `(<>)` over `(++)`; run `hpack` after editing any `package.yaml`.
 
 ## haskell-haddock-skill: resolving local docs and source (the non-trivial part)
@@ -81,6 +84,13 @@ When authoring or editing manifests, follow these schemas (existing files are th
   `/hoogle:remote`.
 - **`<plugin>/.lsp.json`** — language-server config: a map of language name → `{ command, args,
   extensionToLanguage }`. See `haskell-lsp-plugin/.lsp.json`.
+- **`<plugin>/hooks/hooks.json`** — hook config (same schema as `settings.json`'s `hooks`): a
+  top-level `hooks` object keyed by event (e.g. `PostToolUse`), each holding `[{ matcher, hooks:
+  [{ type: "command", command, timeout? }] }]`. `matcher` is a pipe-separated tool-name pattern
+  (e.g. `"Write|Edit|MultiEdit"`); reference plugin files via `${CLAUDE_PLUGIN_ROOT}`. A `command`
+  hook reads the event JSON from stdin (e.g. `.tool_input.file_path`) and may print a JSON object
+  with `hookSpecificOutput.additionalContext` to feed text back to Claude. See
+  `haskell-cabal-gild-skill/hooks/hooks.json` and `haskell-format-skill/hooks/hooks.json`.
 - **`<plugin>/skills/<name>/SKILL.md`** — YAML frontmatter (`name`, `description`; optional
   `allowed-tools`, `version`) followed by Markdown instructions. The `description` should state
   *when to trigger* and include trigger words, since it is what Claude matches against.

@@ -34,6 +34,26 @@
         "name": "Hiromi ISHII"
       },
       "description": "Orchestrating super-skill for Haskell (cabal nix-style) development"
+    },
+    {
+      "name": "haskell-cabal-gild-skill",
+      "source": "./haskell-cabal-gild-skill",
+      "category": "development",
+      "tags": ["haskell", "cabal", "cabal-gild", "formatting", "hooks"],
+      "author": {
+        "name": "Hiromi ISHII"
+      },
+      "description": "Format .cabal/cabal.project files with cabal-gild; on-save hook keeps cabal files formatted"
+    },
+    {
+      "name": "haskell-format-skill",
+      "source": "./haskell-format-skill",
+      "category": "development",
+      "tags": ["haskell", "formatting", "fourmolu", "ormolu", "hooks"],
+      "author": {
+        "name": "Hiromi ISHII"
+      },
+      "description": "Format .hs/.lhs/.hsig sources with fourmolu/ormolu/stylish-haskell; on-save hook formats sources"
     }
   ]
 }

@@ -15,8 +15,9 @@ rather than reimplementing them.
   truth. Do not use stack or invoke `ghc` directly.
 - **Package by package.** In a multi-package project, work on and build one package at a time
   (`cabal build <pkg>`), getting it green before moving on — not `cabal build all`.
-- **Format before compiling.** Run the project's configured formatter (fourmolu / ormolu /
-  stylish-haskell) on changed files before building.
+- **Format before compiling.** Format changed source files with `/haskell-format` (fourmolu /
+  ormolu / stylish-haskell) and changed `.cabal` / `cabal.project` files with
+  `/haskell-cabal-gild` before building. Both also run automatically via their on-save hooks.
 - **`(<>)` over `(++)`** for all concatenation, including lists and strings.
 - After editing any `package.yaml`, run `hpack` to regenerate the `.cabal` file.
 
@@ -37,7 +38,8 @@ rather than reimplementing them.
 
 ## Adding / changing dependencies
 - Edit `package.yaml` / `*.cabal` (or `cabal.project` for `source-repository-package`s), run
-  `hpack` if the project uses hpack, then run `cabal build all` once so the build plan and local
+  `hpack` if the project uses hpack, reformat the cabal/project files with `/haskell-cabal-gild`
+  (or let its on-save hook do it), then run `cabal build all` once so the build plan and local
   docs refresh.
 - After dependencies change, `/haddock` will not resolve new packages locally until
   `cabal build all` has run (and `documentation: True` is set).
@@ -46,5 +48,7 @@ rather than reimplementing them.
 | Need | Use |
 | --- | --- |
 | Typecheck, types, definitions, references, rename | `haskell-lsp-plugin` (LSP tools) |
+| Format `.hs`/`.lhs`/`.hsig` sources | `/haskell-format` |
+| Format `.cabal` / `cabal.project` files | `/haskell-cabal-gild` |
 | Docs / source of a dependency | `/haddock` |
 | Find a function by name or type | `/hoogle:search`, then `/hoogle:remote` |
