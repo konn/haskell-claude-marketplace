@@ -73,10 +73,11 @@ cabal configure --enable-documentation   # ensures `documentation: True`
 cabal build all                           # materialises docs/source for dependencies
 ```
 
-It then resolves each dependency through `cabal path` and the `UnitId` recorded in
-`dist-newstyle/cache/plan.json` (cabal abbreviates package names in the store, so paths cannot be
-guessed from the package name). Packages outside the dependency set fall back to
-[Hackage](https://hackage.haskell.org).
+It then resolves each dependency with the bundled `scripts/locate-dep.sh`, which uses `cabal path`
+and the `UnitId` recorded in `dist-newstyle/cache/plan.json` (cabal abbreviates package names in
+the store, so paths cannot be guessed from the package name) to print the store, Haddock-HTML, and
+source-tarball paths. GHC boot libraries fall back to `ghc-pkg field … haddock-html`; packages
+outside the dependency set fall back to [Hackage](https://hackage.haskell.org).
 
 ### `/haskell-format` — format sources
 Formats `.hs`/`.lhs`/`.hsig` with the project's formatter, chosen by config (`fourmolu.yaml` /

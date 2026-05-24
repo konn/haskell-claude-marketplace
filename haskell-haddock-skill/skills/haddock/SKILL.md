@@ -30,41 +30,83 @@ sources before fetching from Hackage, to avoid loading Haskell's public infrastr
    ```
    cabal build all
    ```
-3. Grab the critical paths (JSON form is easiest to parse):
-   ```
-   cabal path --output-format=json
-   ```
-   - `compiler.store-path` (a.k.a. `compiler-store-path`) → directory of built packages **and
-     their HTML docs**, e.g. `~/.cabal/store/ghc-9.10.3-fe9c`.
-   - `remote-repo-cache` → directory of downloaded **source tarballs**, e.g.
-     `~/Library/Haskell/repo-cache`.
 
 ## Resolving a dependency
-cabal abbreviates and hashes package names in the store (e.g. `splitmix-0.1.1` →
-`spltmx-0.1.1-b2e11b56`), so **never construct store paths from the package name** — read the
-exact `UnitId` from the build plan:
+Run the bundled resolver **from the project root** — it regenerates the build plan, reads
+cabal's store and repo-cache paths, looks up the package's exact `UnitId` in
+`dist-newstyle/cache/plan.json` (cabal abbreviates/hashes names in the store, e.g.
+`splitmix-0.1.1` → `spltmx-0.1.1-b2e11b56`, so paths cannot be guessed), and prints a JSON
+object:
 
-1. Open `{project-root}/dist-newstyle/cache/plan.json` (run `cabal build all` first if absent).
-2. Find the package's entry in `install-plan[]`; note its `id` (the UnitId), `pkg-name`,
-   `pkg-version`, and `pkg-src.type` (the dependency kind).
+```
+"${CLAUDE_PLUGIN_ROOT}/scripts/locate-dep.sh" <package>
+```
 
-### `pkg-src.type` = `repo-tar` (Hackage / Stackage)
-- **HTML docs**: `<compiler-store-path>/<UnitId>/share/doc/**/html/index.html`.
-  Module pages use the dotted module name with `.`→`-`, e.g. `System.Random.SplitMix` →
-  `System-Random-SplitMix.html`. The exact subdirectory varies, so `Glob` under the unit's
-  `share/` directory rather than hardcoding it.
-- **Source**: extract the tarball at
-  `<remote-repo-cache>/hackage.haskell.org/<pkg-name>/<pkg-version>/<pkg-name>-<pkg-version>.tar.gz`.
-  Stream a single file without unpacking everything:
+Output shape:
+```json
+{
+  "store_path": "<cabal-store>/<UnitId>",
+  "doc_dir":    "<store_path>/share/doc/html",
+  "source":     "<repo-cache>/.../<pkg>-<ver>.tar.gz"
+}
+```
+- `store_path` — the resolved unit directory in the cabal store (always present on success).
+- `doc_dir` — Haddock HTML directory, or `null` if docs were not built (see *Notes*).
+- `source` — one of: a **string** path to a Hackage/Stackage source tarball; a **JSON object**
+  with `source-repository-package` metadata; or `null`.
+
+Parse the JSON, then act on the fields below.
+
+### Reading the docs (`doc_dir`)
+When `doc_dir` is non-null, the module pages sit directly inside it. A module's page is its
+dotted name with `.`→`-` plus `.html`, e.g. `System.Random.SplitMix` →
+`<doc_dir>/System-Random-SplitMix.html`; `<doc_dir>/index.html` lists everything. `Glob`
+`<doc_dir>/*.html` if unsure of the exact module name, then `Read` the page.
+
+### Reading the source (`source`)
+- **String (tarball path)** — stream a single file without unpacking everything:
   ```
-  tar -xzOf <tarball> <pkg>-<ver>/<path/to/File.hs>
+  tar -xzOf <source> <pkg>-<ver>/<path/to/File.hs>
   ```
-  or list members with `tar -tzf <tarball>`.
+  or list members with `tar -tzf <source>`.
+- **Object (`source-repository-package`)** — the object is `{ type, location, tag, subdir }`,
+  e.g.
+  ```json
+  {"type":"git","location":"https://github.com/konn/linear-extra.git","tag":"032fd21d…","subdir":"linear-array-extra"}
+  ```
+  `location` + `tag` pin the repo and revision — `tag` is whatever was written in the
+  `source-repository-package` stanza: a commit SHA, a git tag, or a branch name. `subdir` is the
+  package's path **within** the repo (absent or `"."` → repo root). cabal checks the repo out
+  under
+  `{project-root}/dist-newstyle/src/` in a directory named from the repo plus a content hash
+  (**not** the tag), so don't build the path — `Glob` for the `subdir`:
+  ```
+  {project-root}/dist-newstyle/src/*/<subdir>/**/*.hs
+  ```
+  (drop `/<subdir>` when it is absent), then `Read`. cabal also packs a source tarball
+  `dist-newstyle/src/<checkout-dir>-<pkg>-<ver>.tar.gz` beside each checkout if you prefer
+  `tar -xzOf` / `tar -tzf`.
+  If the glob matches **more than one** checkout (the same repo pinned at several revisions lives
+  in several `src/` dirs), pick the one actually built — resolve `tag` to a commit *inside that
+  checkout* and compare to its HEAD, which handles `tag` being a SHA, tag, or branch:
+  ```
+  [ "$(git -C <checkout> rev-parse HEAD)" = "$(git -C <checkout> rev-parse "<tag>^{commit}")" ]
+  ```
+  The non-matching checkouts hold a different commit of the same repo.
 
-### `pkg-src.type` = `source-repo` or `local` (source-repository-package, local packages)
-- These are unpacked under `{project-root}/dist-newstyle/` (e.g.
-  `dist-newstyle/src/<pkg>-<hash>/` for source-repository-packages). Locate with `Glob` and
-  `Read` the `.hs` files directly. Local packages live at their path in `cabal.project`.
+### Script prints `null` / exits non-zero
+The package is not in the cabal store. Two common cases:
+- **GHC boot library** (`base`, `ghc-prim`, `containers`, `template-haskell`, …) — its docs
+  ship with the compiler, not the store. Get the dir from the project's compiler:
+  ```
+  ghc-pkg-<ver> field <pkg> haddock-html
+  ```
+  Derive `<ver>` and the binary's location from `cabal path --output-format=json`
+  (`.compiler.id` is `ghc-<ver>`; `.compiler.path` is the `ghc-<ver>` binary, so its sibling
+  `ghc-pkg-<ver>` is the right `ghc-pkg`). The reported dir contains `index.html` and the
+  per-module pages.
+- **Local package** (one of the project's own packages) — read its sources straight from its
+  path in `cabal.project`.
 
 ### Package outside the dependency set
 - Docs: `WebFetch https://hackage.haskell.org/package/<pkg>` (module page:
@@ -72,5 +114,6 @@ exact `UnitId` from the build plan:
 - Prefer `/hoogle:search` for symbol/type lookup before fetching full pages.
 
 ## Notes
-- If local docs are missing, the likely cause is that `documentation: True` was not set or
-  `cabal build all` has not run since the dependency was added — redo the setup steps.
+- If `doc_dir` is `null` for a real dependency, the likely cause is that `documentation: True`
+  was not set or `cabal build all` has not run since the dependency was added — redo the setup
+  steps, then re-run the resolver.

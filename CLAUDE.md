@@ -18,7 +18,7 @@ repo means editing JSON manifests and Markdown `SKILL.md` files, not Haskell sou
 | Path | Kind | Status | Role |
 | --- | --- | --- | --- |
 | `haskell-lsp-plugin/` | LSP plugin | **exists** | Launches `haskell-language-server-wrapper --lsp` for fast typecheck, symbol lookup, rename, diagnostics |
-| `haskell-haddock-skill/` | skill plugin | **planned** | Read local Haddock HTML docs and package source for dependencies |
+| `haskell-haddock-skill/` | skill plugin | **exists** | `/haddock`: read local Haddock HTML docs and package source for dependencies; bundles `scripts/locate-dep.sh` to resolve a package to its store/doc/source paths |
 | `haskell-skill/` | skill plugin | **planned** | Orchestrating "super skill" that drives a full Haskell dev workflow |
 | `haskell-cabal-gild-skill/` | skill plugin + hook | **exists** | `/haskell-cabal-gild`: format `.cabal`/`cabal.project` with cabal-gild; on-save hook reformats cabal files and refreshes `discover` module lists |
 | `haskell-format-skill/` | skill plugin + hook | **exists** | `/haskell-format`: format `.hs`/`.lhs`/`.hsig` with fourmolu/ormolu/stylish-haskell; on-save hook formats sources |
@@ -50,7 +50,10 @@ Core development principles the `haskell-skill` is meant to encode (relevant whe
 
 ## haskell-haddock-skill: resolving local docs and source (the non-trivial part)
 
-This skill maps a dependency to on-disk Haddock HTML or unpacked source. The intended algorithm:
+This skill maps a dependency to on-disk Haddock HTML or unpacked source. The bundled
+`haskell-haddock-skill/scripts/locate-dep.sh <package>` implements steps 1–5 below and prints a
+JSON object `{ store_path, doc_dir, source }` (run it from the project root); `SKILL.md` drives it
+and then reads the resolved files. The algorithm it encodes:
 
 1. Ensure docs are configured: `cabal.project.local` must have `documentation: True`
    (`cabal configure --enable-documentation` sets this).
