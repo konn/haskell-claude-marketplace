@@ -8,6 +8,7 @@
     {
       "name": "haskell-lsp-plugin",
       "source": "./haskell-lsp-plugin",
+      "version": "0.2.0",
       "category": "development",
       "tags": ["haskell", "lsp", "language-server", "hls"],
       "author": {
@@ -18,6 +19,7 @@
     {
       "name": "haskell-haddock-skill",
       "source": "./haskell-haddock-skill",
+      "version": "0.2.0",
       "category": "development",
       "tags": ["haskell", "haddock", "documentation", "hackage", "source"],
       "author": {
@@ -28,6 +30,7 @@
     {
       "name": "haskell-skill",
       "source": "./haskell-skill",
+      "version": "0.2.0",
       "category": "development",
       "tags": ["haskell", "cabal", "development", "workflow"],
       "author": {
@@ -38,6 +41,7 @@
     {
       "name": "haskell-cabal-gild-skill",
       "source": "./haskell-cabal-gild-skill",
+      "version": "0.2.0",
       "category": "development",
       "tags": ["haskell", "cabal", "cabal-gild", "formatting", "hooks"],
       "author": {
@@ -48,6 +52,7 @@
     {
       "name": "haskell-format-skill",
       "source": "./haskell-format-skill",
+      "version": "0.2.0",
       "category": "development",
       "tags": ["haskell", "formatting", "fourmolu", "ormolu", "hooks"],
       "author": {
