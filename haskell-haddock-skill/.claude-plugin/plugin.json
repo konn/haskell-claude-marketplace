@@ -1,7 +1,7 @@
 {
   "name": "haskell-haddock-skill",
   "description": "Read local Haddock HTML documentation and package source for cabal dependencies",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "author": {
     "name": "Hiromi ISHII"
   }

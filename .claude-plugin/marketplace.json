@@ -19,7 +19,7 @@
     {
       "name": "haskell-haddock-skill",
       "source": "./haskell-haddock-skill",
-      "version": "0.2.0",
+      "version": "0.3.0",
       "category": "development",
       "tags": ["haskell", "haddock", "documentation", "hackage", "source"],
       "author": {
