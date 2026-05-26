@@ -50,10 +50,15 @@ Output shape:
   "source":     "<repo-cache>/.../<pkg>-<ver>.tar.gz"
 }
 ```
-- `store_path` — the resolved unit directory in the cabal store (always present on success).
-- `doc_dir` — Haddock HTML directory, or `null` if docs were not built (see *Notes*).
-- `source` — one of: a **string** path to a Hackage/Stackage source tarball; a **JSON object**
-  with `source-repository-package` metadata; or `null`.
+- `store_path` — the resolved unit directory in the cabal store (always present on success). For a
+  **local package** (one of the project's own packages) it is instead the package's build dir,
+  `dist-newstyle/build/<arch>-<os>/<compiler-id>/<pkg>-<ver>` (reconstructed from the root
+  `arch`/`os`/`compiler-id` fields of `plan.json`).
+- `doc_dir` — Haddock HTML directory, or `null` if docs were not built (see *Notes*). For a local
+  package this is `<store_path>/doc/html/<pkg>`.
+- `source` — one of: a **string** path to a Hackage/Stackage source tarball; a **JSON object** with
+  `source-repository-package` metadata (VCS `type`, i.e. `git`/`hg`/…); a **JSON object**
+  `{"type":"local","path":...}` for a local package's source tree; or `null`.
 
 Parse the JSON, then act on the fields below.
 
@@ -69,8 +74,12 @@ dotted name with `.`→`-` plus `.html`, e.g. `System.Random.SplitMix` →
   tar -xzOf <source> <pkg>-<ver>/<path/to/File.hs>
   ```
   or list members with `tar -tzf <source>`.
-- **Object (`source-repository-package`)** — the object is `{ type, location, tag, subdir }`,
-  e.g.
+- **Object — branch on `.type`.**
+- **`{"type":"local","path":...}` (local package)** — one of the project's own packages. Its
+  source is the project source tree at `path`; read it directly. `Glob <path>/**/*.hs` (or
+  `<path>/src/**/*.hs`) to find a module, then `Read`. No unpacking or checkout needed.
+- **`source-repository-package` (VCS `type`: `git`/`hg`/…)** — the object is
+  `{ type, location, tag, subdir }`, e.g.
   ```json
   {"type":"git","location":"https://github.com/konn/linear-extra.git","tag":"032fd21d…","subdir":"linear-array-extra"}
   ```
@@ -95,18 +104,18 @@ dotted name with `.`→`-` plus `.html`, e.g. `System.Random.SplitMix` →
   The non-matching checkouts hold a different commit of the same repo.
 
 ### Script prints `null` / exits non-zero
-The package is not in the cabal store. Two common cases:
-- **GHC boot library** (`base`, `ghc-prim`, `containers`, `template-haskell`, …) — its docs
-  ship with the compiler, not the store. Get the dir from the project's compiler:
-  ```
-  ghc-pkg-<ver> field <pkg> haddock-html
-  ```
-  Derive `<ver>` and the binary's location from `cabal path --output-format=json`
-  (`.compiler.id` is `ghc-<ver>`; `.compiler.path` is the `ghc-<ver>` binary, so its sibling
-  `ghc-pkg-<ver>` is the right `ghc-pkg`). The reported dir contains `index.html` and the
-  per-module pages.
-- **Local package** (one of the project's own packages) — read its sources straight from its
-  path in `cabal.project`.
+The package is not in the cabal store and is not a local package — most often a **GHC boot
+library** (`base`, `ghc-prim`, `containers`, `template-haskell`, …). Its docs ship with the
+compiler, not the store. Get the dir from the project's compiler:
+```
+ghc-pkg-<ver> field <pkg> haddock-html
+```
+Derive `<ver>` and the binary's location from `cabal path --output-format=json`
+(`.compiler.id` is `ghc-<ver>`; `.compiler.path` is the `ghc-<ver>` binary, so its sibling
+`ghc-pkg-<ver>` is the right `ghc-pkg`). The reported dir contains `index.html` and the
+per-module pages.
+
+(Local packages resolve normally now — see the `{"type":"local",…}` `source` form above.)
 
 ### Package outside the dependency set
 - Docs: `WebFetch https://hackage.haskell.org/package/<pkg>` (module page:
@@ -117,3 +126,6 @@ The package is not in the cabal store. Two common cases:
 - If `doc_dir` is `null` for a real dependency, the likely cause is that `documentation: True`
   was not set or `cabal build all` has not run since the dependency was added — redo the setup
   steps, then re-run the resolver.
+- If `doc_dir` is `null` for a **local package**, its Haddock simply hasn't been generated yet —
+  `cabal build` does **not** produce local docs. Run `cabal haddock <pkg>` (or `cabal haddock all`),
+  then re-run the resolver. The source is still readable from `source.path` regardless.

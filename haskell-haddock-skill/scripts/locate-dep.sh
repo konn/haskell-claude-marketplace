@@ -12,8 +12,19 @@
 #     "doc_dir":    "<store_path>/share/doc/html" | null, # Haddock HTML dir, if built
 #     "source":     "<repo-cache>/.../<pkg>-<ver>.tar.gz" # Hackage/Stackage source tarball
 #                 | { ...source-repo... }                 # source-repository-package metadata
+#                 | { "type": "local", "path": "<dir>" }  # project's own (local) package source
 #                 | null
 #   }
+#
+# For a **local package** (one of the project's own packages, "pkg-src.type" == "local"),
+# nothing lives in the cabal store. Instead the build/doc dir is reconstructed from plan.json's
+# root "arch"/"os"/"compiler-id" fields plus the package name/version:
+#
+#   dist-newstyle/build/<arch>-<os>/<compiler-id>/<pkg>-<ver>
+#
+# `store_path` is that build dir, `doc_dir` is "<build-dir>/doc/html/<pkg>" (when Haddock has been
+# generated — local docs require `cabal haddock`, not `cabal build`), and `source` is the local
+# source tree from "pkg-src.path".
 #
 # Exits 1 with `null` on stdout when the package is not in the store (e.g. a GHC boot
 # library such as `base`, which lives in the global package db, not the cabal store).
@@ -31,17 +42,51 @@ done
 # First regenerate plan.json
 cabal build -v0 --dry-run all
 
-# Then extract the paths
-PATH_JSON=$(cabal path --output-format=json)
-STORE_DIR=$(jq -crM '.compiler | ."store-path"' <<< "${PATH_JSON}")
-REMOTE_REPO_CACHE=$(jq -crM '."remote-repo-cache"' <<< "${PATH_JSON}")
-
-PLAN_JSON=dist-newstyle/cache/plan.json
+PLAN_JSON_FILE=dist-newstyle/cache/plan.json
 QUERY=".\"install-plan\" | .[] | select(.\"pkg-name\" == \"${PACKAGE}\")"
 
 declare -g COMPONENT=""
 
-PLAN_JSON=$(jq -crM "${QUERY}" "${PLAN_JSON}")
+PLAN_JSON=$(jq -crM "${QUERY}" "${PLAN_JSON_FILE}")
+
+# Local package? (one of the project's own packages — never in the cabal store)
+FIRST_COMPONENT=$(head -n1 <<< "${PLAN_JSON}")
+PKG_SRC_TYPE=$(jq -rcM '."pkg-src"."type" // empty' <<< "${FIRST_COMPONENT}")
+
+if [[ "${PKG_SRC_TYPE}" == "local" ]]; then
+  SRC_PATH=$(jq -rcM '."pkg-src"."path"' <<< "${FIRST_COMPONENT}")
+  PKG_VERSION=$(jq -rcM '."pkg-version"' <<< "${FIRST_COMPONENT}")
+
+  # Reconstruct the package build dir from plan.json's root arch/os/compiler-id fields:
+  #   dist-newstyle/build/<arch>-<os>/<compiler-id>/<pkg>-<ver>
+  ARCH=$(jq -rcM '.arch' "${PLAN_JSON_FILE}")
+  OS=$(jq -rcM '.os' "${PLAN_JSON_FILE}")
+  COMPILER_ID=$(jq -rcM '."compiler-id"' "${PLAN_JSON_FILE}")
+  BUILD_DIR="${PWD}/dist-newstyle/build/${ARCH}-${OS}/${COMPILER_ID}/${PACKAGE}-${PKG_VERSION}"
+
+  if [[ -d "${BUILD_DIR}" ]]; then
+    STORE_PATH=$(jq -rcM --raw-input '@json' <<< "${BUILD_DIR}")
+  else
+    STORE_PATH="null"
+  fi
+
+  DOC_HTML_DIR="${BUILD_DIR}/doc/html/${PACKAGE}"
+  if [[ -d "${DOC_HTML_DIR}" ]]; then
+    DOC_DIR=$(jq -rcM --raw-input '@json' <<< "${DOC_HTML_DIR}")
+  else
+    DOC_DIR="null"
+  fi
+
+  SOURCE=$(jq -ncM --arg p "${SRC_PATH}" '{type: "local", path: $p}')
+
+  jq -nrcM "{store_path: ${STORE_PATH}, doc_dir: ${DOC_DIR}, source: ${SOURCE}}"
+  exit 0
+fi
+
+# Non-local: read cabal's store and repo-cache paths for the store lookup below.
+PATH_JSON=$(cabal path --output-format=json)
+STORE_DIR=$(jq -crM '.compiler | ."store-path"' <<< "${PATH_JSON}")
+REMOTE_REPO_CACHE=$(jq -crM '."remote-repo-cache"' <<< "${PATH_JSON}")
 
 while read -r CUR_COMPONENT; do
   ID=$(jq -rcM '.id' <<< "${CUR_COMPONENT}")
